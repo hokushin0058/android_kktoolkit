@@ -18,4 +18,7 @@ public abstract class KKAPIListener {
 	public void onAPIComplete() {};
 
 	public void onAPIError(int errorCode) {};
+
+	public void onAPIError(int errorCode, String content) {};
+
 }

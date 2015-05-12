@@ -83,6 +83,13 @@ public abstract class APIBase {
 		}
 	}
 
+	protected void onAPIError(int errorCode, String content) {
+		KKDebug.i(getClass().getSimpleName() + " completed with errorCode: " + errorCode + ", content = " + content);
+		if (apiListener != null) {
+			apiListener.onAPIError(errorCode, content);
+		}
+	}
+
 	protected void onAPIComplete() {
 		KKDebug.i(getClass().getSimpleName() + " completed");
 		if (apiListener != null) {
@@ -96,7 +103,7 @@ public abstract class APIBase {
 	}
 
 	protected void onAPIHttpStatusError(int statusCode, String content) {
-		onAPIError(ErrorCode.UNKNOWN_SERVER_ERROR);
+		onAPIError(ErrorCode.UNKNOWN_SERVER_ERROR, content);
 	}
 
 	protected void execute(APIRequest request) {
