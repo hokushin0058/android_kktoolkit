@@ -60,7 +60,6 @@ public abstract class KKFragment extends Fragment {
 	private boolean autoDataLoading = true;
 	private int customEnterAnimation = 0;
 	private int customExitAnimation = 0;
-	private String  loadingErrorMessage;
 
 	public KKFragment() {}
 
@@ -158,8 +157,8 @@ public abstract class KKFragment extends Fragment {
 		if (viewMessage != null) {
 			if (customErrorView != null) {
 				viewMessage.setCustomView(customErrorView);
-			} else {
-				viewMessage.setSingleTextView(loadingErrorMessage);
+			} else if (getActivity() != null) {
+				viewMessage.setSingleTextView(activity.getString(R.string.loading_error));
 			}
 			viewMessage.show();
 		}
@@ -170,7 +169,6 @@ public abstract class KKFragment extends Fragment {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		activity = getActivity();
-		loadingErrorMessage = getString(R.string.loading_error);
 	}
 
 	public void onReceiveMessage(Bundle arguments) {}
