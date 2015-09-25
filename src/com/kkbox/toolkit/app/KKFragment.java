@@ -60,9 +60,9 @@ public abstract class KKFragment extends Fragment {
 	private boolean autoDataLoading = true;
 	private int customEnterAnimation = 0;
 	private int customExitAnimation = 0;
+	private String  loadingErrorMessage;
 
-	public KKFragment() {
-	}
+	public KKFragment() {}
 
 	public static void setAnimation(int type) {
 		animationType = type;
@@ -76,8 +76,7 @@ public abstract class KKFragment extends Fragment {
 		}
 	}
 
-	public void onLoadData() {
-	}
+	public void onLoadData() {}
 
 	public void setCustomErrorView(View view) {
 		customErrorView = view;
@@ -125,30 +124,28 @@ public abstract class KKFragment extends Fragment {
 		// workaround for sdk < 4.2 Orz
 		if (Build.VERSION.SDK_INT < 17) {
 			try {
-				int CREATED = 1; // Created.
-				int ACTIVITY_CREATED = 2; // The activity has finished its
-											// creation.
-				int STOPPED = 3; // Fully created, not started.
-				int STARTED = 4; // Created and started, not resumed.
-				int RESUMED = 5; // Created started and resumed.
+				int CREATED = 1;          // Created.
+				int ACTIVITY_CREATED = 2; // The activity has finished its creation.
+				int STOPPED = 3;          // Fully created, not started.
+				int STARTED = 4;          // Created and started, not resumed.
+				int RESUMED = 5;          // Created started and resumed.
 				Field childFragmentManager = Fragment.class.getDeclaredField("mChildFragmentManager");
 				Field mState = Fragment.class.getDeclaredField("mState");
-				Method dispatchResumeMethod = childFragmentManager.getType().getDeclaredMethod("dispatchResume");
-				Method dispatchStartMethod = childFragmentManager.getType().getDeclaredMethod("dispatchStart");
-				Method dispatchActivityCreatedMethod = childFragmentManager.getType().getDeclaredMethod(
-						"dispatchActivityCreated");
-				Method dispatchCreateMethod = childFragmentManager.getType().getDeclaredMethod("dispatchCreate");
+				Method dispatchResumeMethod = childFragmentManager.getType().getDeclaredMethod("dispatchResume", null);
+				Method dispatchStartMethod = childFragmentManager.getType().getDeclaredMethod("dispatchStart", null);
+				Method dispatchActivityCreatedMethod = childFragmentManager.getType().getDeclaredMethod("dispatchActivityCreated", null);
+				Method dispatchCreateMethod = childFragmentManager.getType().getDeclaredMethod("dispatchCreate", null);
 				mState.setAccessible(true);
 				childFragmentManager.setAccessible(true);
 				int state = mState.getInt(this);
 				if (state >= RESUMED) {
-					dispatchResumeMethod.invoke(childFragmentManager.get(this));
+					dispatchResumeMethod.invoke(childFragmentManager.get(this), null);
 				} else if (state >= STARTED) {
-					dispatchStartMethod.invoke(childFragmentManager.get(this));
+					dispatchStartMethod.invoke(childFragmentManager.get(this), null);
 				} else if (state >= ACTIVITY_CREATED) {
-					dispatchActivityCreatedMethod.invoke(childFragmentManager.get(this));
+					dispatchActivityCreatedMethod.invoke(childFragmentManager.get(this), null);
 				} else if (state >= CREATED) {
-					dispatchCreateMethod.invoke(childFragmentManager.get(this));
+					dispatchCreateMethod.invoke(childFragmentManager.get(this), null);
 				}
 			} catch (Exception e) {
 				throw new RuntimeException(e);
@@ -162,7 +159,7 @@ public abstract class KKFragment extends Fragment {
 			if (customErrorView != null) {
 				viewMessage.setCustomView(customErrorView);
 			} else {
-				viewMessage.setSingleTextView(getString(R.string.loading_error));
+				viewMessage.setSingleTextView(loadingErrorMessage);
 			}
 			viewMessage.show();
 		}
@@ -173,10 +170,10 @@ public abstract class KKFragment extends Fragment {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		activity = getActivity();
+		loadingErrorMessage = getString(R.string.loading_error);
 	}
 
-	public void onReceiveMessage(Bundle arguments) {
-	}
+	public void onReceiveMessage(Bundle arguments) {}
 
 	protected void initView(View view) {
 		viewMessage = (KKMessageView) view.findViewById(R.id.view_message);
@@ -234,8 +231,7 @@ public abstract class KKFragment extends Fragment {
 				animation = AnimationUtils.loadAnimation(activity, R.anim.fade_out);
 			}
 		} else if (animation == null) {
-			animation = new Animation() {
-			};
+			animation = new Animation() {};
 			animation.setDuration(0);
 		}
 		animation.setAnimationListener(new AnimationListener() {
@@ -248,12 +244,10 @@ public abstract class KKFragment extends Fragment {
 			}
 
 			@Override
-			public void onAnimationStart(Animation a) {
-			}
+			public void onAnimationStart(Animation a) {}
 
 			@Override
-			public void onAnimationRepeat(Animation a) {
-			}
+			public void onAnimationRepeat(Animation a) {}
 		});
 		return animation;
 	}
