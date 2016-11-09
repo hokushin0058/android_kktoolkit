@@ -95,6 +95,7 @@ public abstract class APIRequest extends UserTask<Object, Void, Void> {
         okHttpBuilder.connectionSpecs(Collections.singletonList(ConnectionSpec.MODERN_TLS));
         okHttpBuilder.connectTimeout(10, TimeUnit.SECONDS);
         okHttpBuilder.readTimeout(socketTimeout, TimeUnit.MILLISECONDS);
+        httpClient = okHttpBuilder.build();
 
         requestBuilder = new Request.Builder();
         getParams = TextUtils.isEmpty(Uri.parse(url).getQuery()) ? "" : "?" + Uri.parse(url).getQuery();
@@ -277,8 +278,7 @@ public abstract class APIRequest extends UserTask<Object, Void, Void> {
 
                     Request request = requestBuilder.build();
 
-                    httpClient = okHttpBuilder.build();
-                    call = okHttpBuilder.build().newCall(request);
+                    call = httpClient.newCall(request);
                     response = call.execute();
 
                     httpStatusCode = response.code();
