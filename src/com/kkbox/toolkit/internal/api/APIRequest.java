@@ -23,14 +23,6 @@ import android.text.TextUtils;
 import com.kkbox.toolkit.utils.KKDebug;
 import com.kkbox.toolkit.utils.StringUtils;
 import com.kkbox.toolkit.utils.UserTask;
-import com.squareup.okhttp.Call;
-import com.squareup.okhttp.FormEncodingBuilder;
-import com.squareup.okhttp.MediaType;
-import com.squareup.okhttp.MultipartBuilder;
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.RequestBody;
-import com.squareup.okhttp.Response;
 
 import org.json.JSONObject;
 
@@ -40,14 +32,24 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.net.ssl.SSLException;
+
+import okhttp3.Cache;
+import okhttp3.Call;
+import okhttp3.ConnectionSpec;
+import okhttp3.FormBody;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public abstract class APIRequest extends UserTask<Object, Void, Void> {
 
@@ -60,14 +62,15 @@ public abstract class APIRequest extends UserTask<Object, Void, Void> {
     private APIRequestListener listener;
     private String getParams = "";
     private final String url;
-    private static OkHttpClient httpClient = new OkHttpClient();
+    private static OkHttpClient.Builder okHttpBuilder = new OkHttpClient.Builder();
+    private static OkHttpClient httpClient = null;
     private boolean isNetworkError = false;
     private boolean isHttpStatusError = false;
     private String errorMessage = "";
     private int httpStatusCode = 0;
     private Request.Builder requestBuilder;
-    private FormEncodingBuilder requestBodyBuilder;
-    private MultipartBuilder multipartBuilder;
+    private FormBody.Builder requestBodyBuilder;
+    private MultipartBody.Builder multipartBuilder;
     private Cipher cipher = null;
     private Context context = null;
     private long cacheTimeOut = -1;
@@ -87,19 +90,14 @@ public abstract class APIRequest extends UserTask<Object, Void, Void> {
     }
 
     public APIRequest(HttpMethod httpMethod, String url, Cipher cipher, int socketTimeout) {
-        try {
-            httpClient.setSslSocketFactory(new TLSSocketFactory());
-        } catch (KeyManagementException e) {
-            e.printStackTrace();
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
+        okHttpBuilder = new OkHttpClient.Builder();
 
-        httpClient.setConnectTimeout(10, TimeUnit.SECONDS);
-        httpClient.setReadTimeout(socketTimeout, TimeUnit.MILLISECONDS);
+        okHttpBuilder.connectionSpecs(Collections.singletonList(ConnectionSpec.MODERN_TLS));
+        okHttpBuilder.connectTimeout(10, TimeUnit.SECONDS);
+        okHttpBuilder.readTimeout(socketTimeout, TimeUnit.MILLISECONDS);
+
         requestBuilder = new Request.Builder();
         getParams = TextUtils.isEmpty(Uri.parse(url).getQuery()) ? "" : "?" + Uri.parse(url).getQuery();
-
         this.httpMethod = httpMethod;
         this.url = url.split("\\?")[0];
         this.cipher = cipher;
@@ -109,6 +107,11 @@ public abstract class APIRequest extends UserTask<Object, Void, Void> {
         } else if (httpMethod == HttpMethod.DELETE) {
             requestBuilder.delete();
         }
+    }
+
+    static public void setCache(File directory, long size) {
+        Cache cache = new Cache(directory, size);
+        okHttpBuilder.cache(cache);
     }
 
     public void addGetParam(String key, String value) {
@@ -131,13 +134,13 @@ public abstract class APIRequest extends UserTask<Object, Void, Void> {
 
     public void addEmptyPostParam() {
         if (requestBodyBuilder == null) {
-            requestBodyBuilder = new FormEncodingBuilder();
+            requestBodyBuilder = new FormBody.Builder();
         }
     }
 
     public void addPostParam(String key, String value) {
         if (requestBodyBuilder == null) {
-            requestBodyBuilder = new FormEncodingBuilder();
+            requestBodyBuilder = new FormBody.Builder();
         }
         requestBodyBuilder.add(key, value);
     }
@@ -148,14 +151,14 @@ public abstract class APIRequest extends UserTask<Object, Void, Void> {
 
     public void addMultiPartPostParam(String key, String fileName, RequestBody requestBody) {
         if (multipartBuilder == null) {
-            multipartBuilder = new MultipartBuilder().type(MultipartBuilder.FORM);
+            multipartBuilder = new MultipartBody.Builder().setType(MultipartBody.FORM);
         }
         multipartBuilder.addFormDataPart(key, fileName, requestBody);
     }
 
     public void addMultiPartPostParam(String key, String value) {
         if (multipartBuilder == null) {
-            multipartBuilder = new MultipartBuilder().type(MultipartBuilder.FORM);
+            multipartBuilder = new MultipartBody.Builder().setType(MultipartBody.FORM);
         }
         multipartBuilder.addFormDataPart(key, value);
     }
@@ -205,14 +208,16 @@ public abstract class APIRequest extends UserTask<Object, Void, Void> {
     public void cancel() {
         listener = null;
         // TODO: https://github.com/square/okhttp/issues/1592
-        httpClient.getDispatcher().getExecutorService().execute(new Runnable() {
-            @Override
-            public void run() {
-                if (call != null) {
-                    call.cancel();
+        if (httpClient != null) {
+            httpClient.dispatcher().executorService().execute(new Runnable() {
+                @Override
+                public void run() {
+                    if (call != null) {
+                        call.cancel();
+                    }
                 }
-            }
-        });
+            });
+        }
         this.cancel(true);
     }
 
@@ -269,8 +274,13 @@ public abstract class APIRequest extends UserTask<Object, Void, Void> {
                     } else {
                         requestBuilder.url(url + getParams);
                     }
-                    call = httpClient.newCall(requestBuilder.build());
+
+                    Request request = requestBuilder.build();
+
+                    httpClient = okHttpBuilder.build();
+                    call = okHttpBuilder.build().newCall(request);
                     response = call.execute();
+
                     httpStatusCode = response.code();
                     int httpStatusType = httpStatusCode / 100;
                     switch (httpStatusType) {
