@@ -92,10 +92,9 @@ public abstract class APIRequest extends UserTask<Object, Void, Void> {
     public APIRequest(HttpMethod httpMethod, String url, Cipher cipher, int socketTimeout) {
         if (okHttpBuilder == null) {
             okHttpBuilder = new OkHttpClient.Builder();
+            okHttpBuilder.connectionSpecs(Collections.singletonList(ConnectionSpec.MODERN_TLS));
+            okHttpBuilder.connectTimeout(10, TimeUnit.SECONDS);
         }
-
-        okHttpBuilder.connectionSpecs(Collections.singletonList(ConnectionSpec.MODERN_TLS));
-        okHttpBuilder.connectTimeout(10, TimeUnit.SECONDS);
         okHttpBuilder.readTimeout(socketTimeout, TimeUnit.MILLISECONDS);
         if (httpClient == null) {
             httpClient = okHttpBuilder.build();
@@ -278,9 +277,7 @@ public abstract class APIRequest extends UserTask<Object, Void, Void> {
                         requestBuilder.url(url + getParams);
                     }
 
-                    Request request = requestBuilder.build();
-
-                    call = httpClient.newCall(request);
+                    call = httpClient.newCall(requestBuilder.build());
                     response = call.execute();
 
                     httpStatusCode = response.code();
