@@ -62,7 +62,7 @@ public abstract class APIRequest extends UserTask<Object, Void, Void> {
     private APIRequestListener listener;
     private String getParams = "";
     private final String url;
-    private static OkHttpClient.Builder okHttpBuilder = new OkHttpClient.Builder();
+    private static OkHttpClient.Builder okHttpBuilder = null;
     private static OkHttpClient httpClient = null;
     private boolean isNetworkError = false;
     private boolean isHttpStatusError = false;
@@ -90,12 +90,16 @@ public abstract class APIRequest extends UserTask<Object, Void, Void> {
     }
 
     public APIRequest(HttpMethod httpMethod, String url, Cipher cipher, int socketTimeout) {
-        okHttpBuilder = new OkHttpClient.Builder();
+        if (okHttpBuilder == null) {
+            okHttpBuilder = new OkHttpClient.Builder();
+        }
 
         okHttpBuilder.connectionSpecs(Collections.singletonList(ConnectionSpec.MODERN_TLS));
         okHttpBuilder.connectTimeout(10, TimeUnit.SECONDS);
         okHttpBuilder.readTimeout(socketTimeout, TimeUnit.MILLISECONDS);
-        httpClient = okHttpBuilder.build();
+        if (httpClient == null) {
+            httpClient = okHttpBuilder.build();
+        }
 
         requestBuilder = new Request.Builder();
         getParams = TextUtils.isEmpty(Uri.parse(url).getQuery()) ? "" : "?" + Uri.parse(url).getQuery();
@@ -209,16 +213,14 @@ public abstract class APIRequest extends UserTask<Object, Void, Void> {
     public void cancel() {
         listener = null;
         // TODO: https://github.com/square/okhttp/issues/1592
-        if (httpClient != null) {
-            httpClient.dispatcher().executorService().execute(new Runnable() {
-                @Override
-                public void run() {
-                    if (call != null) {
-                        call.cancel();
-                    }
+        httpClient.dispatcher().executorService().execute(new Runnable() {
+            @Override
+            public void run() {
+                if (call != null) {
+                    call.cancel();
                 }
-            });
-        }
+            }
+        });
         this.cancel(true);
     }
 
